@@ -1,8 +1,10 @@
 """Marks the package containing the Psychopy Ledstrip plugin hardware objects."""
 
+from fastrakSerialDriver.fastrakPosition import FastrakPostion
 from psychopy import logging
 from psychopy.hardware.base import BaseDevice
 from serial.tools import list_ports
+from slasd.fastrakAnimator import FastrakAnimationDevice
 
 
 class LedstripHardwareDevice(BaseDevice):
@@ -31,6 +33,11 @@ class LedstripHardwareDevice(BaseDevice):
     _name: str
     _is_locked: bool
     _is_setup: bool
+    _ledStrip: FastrakAnimationDevice
+    _angleToLight: int
+    _colorR: int
+    _colorG: int
+    _colorB: int
 
     def __init__(self, *args, **kwargs):
         """Initialize a Psychopy hardware object for a Ledstrip."""
@@ -39,30 +46,28 @@ class LedstripHardwareDevice(BaseDevice):
         port = kwargs.get('port')
         if not isinstance(port, str):
             raise Exception(
-                'Port input for Ledstrip is not a string.'
+                'Port input for Fastrak is not a string.'
+            )  # TODO: Add specific Exception
+
+        baudrate = kwargs.get('baudrate')
+        if not isinstance(baudrate, int):
+            raise Exception(
+                'Baudrate for Fastrak is not valid.'
+            )  # TODO: Add specific Exception
+
+        ledCount = kwargs.get('ledCount')
+        if not isinstance(ledCount, int):
+            raise Exception(
+                'Baudrate for Fastrak is not valid.'
             )  # TODO: Add specific Exception
 
         # Create a driver instance for the device.
-        self._name = f'Ledstrip-{port}'
+        self._name = f'Ledstrip-{port}_{baudrate}KHz'
         self._is_setup = False
-        self._is_locked = False
-
-    def _getStation(self, station: str) -> None:
-        """Transform station id string into LedstripStations enum.
-
-        Parameters
-        ----------
-        station : str
-            String representing the Ledstrip station.
-
-
-        Returns
-        -------
-        LedstripStations | None
-            When decoding is successful a LedstripStations enum object is returned. Otherwise,
-            we return `None`.
-        """
-        return None
+        self._baud = baudrate
+        self._ledStrip = FastrakAnimationDevice(
+            COMport=port, baud=baudrate, ledCount=ledCount, setup=False
+        )
 
     def isSameDevice(self, other: 'LedstripHardwareDevice') -> bool:
         """Determine whether this object represents the same physical device as a given `other` object.
@@ -80,7 +85,10 @@ class LedstripHardwareDevice(BaseDevice):
         bool
             True if the two objects represent the same physical device
         """
-        return isinstance(other, LedstripHardwareDevice)  # and other._ftd == self._ftd
+        return (
+            isinstance(other, LedstripHardwareDevice)
+            and other._ledStrip == self._ledStrip
+        )
 
     @staticmethod
     def getAvailableDevices() -> list[dict]:
@@ -117,3 +125,12 @@ class LedstripHardwareDevice(BaseDevice):
         """
         return self._name
 
+    def setLedState(self, pos: FastrakPostion) -> None:
+
+        self._ledStrip.compNSndState(
+            posData=pos,
+            angleToLight=self._angleToLight,
+            colorR=self._colorR,
+            colorG=self._colorG,
+            colorB=self._colorB,
+        )
